@@ -1,0 +1,199 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+[System.Serializable]
+public class NPCCharacters
+{
+    //Calls the Private Class Name So it cannot be changed in the Inspector
+    public string AIClassName { get { return l_aiClassName; } }
+    //Sets the Character Model for the AI
+    public GameObject CharacterModel { get { return l_charactermodel; } }
+    //Limits the Amount of AI that is able to spawn
+    //(Purely For Testing At the Moment)
+    public int aiLimit { get { return l_aiLimit; } }
+    //Sets the AI Spawn Rate, Does not have all the Ai Spawn at once
+    public int aiSpawnRate { get { return l_aiSpawnRate; } }
+    //Sets the Max Ai Spawns at any given time
+    //This could be left out for now but is added for testing purposes
+    public int maxAiSpawns { get { return l_maxAiSpawns; } }
+    //Randomizes the Overall Spawns that are being made
+    public bool randomizeSpawns { get { return l_randomizeOveralls; } }
+    //Enables the Spawning of the characters
+    public bool enableSpawn { get { return l_enableSpawning; } }
+
+    //Private Classes That Don't allow Changes in the Inspector
+    [Header ("AI Settings")]
+    [SerializeField]
+    private string l_aiClassName;
+    [SerializeField]
+    private GameObject l_charactermodel;
+    [SerializeField]
+    [Range(0f, 20f)]
+    private int l_aiLimit;
+    [SerializeField]
+    [Range(0f, 10f)]
+    private int l_aiSpawnRate;
+    [SerializeField]
+    [Range(0f, 10f)]
+    private int l_maxAiSpawns;
+    [SerializeField]
+    private bool l_randomizeOveralls;
+    [SerializeField]
+    private bool l_enableSpawning;
+
+
+    //Creates the Variables for the Ai Settings Menu
+    public NPCCharacters(string AIClassName, GameObject CharacterModel, int aiLimit, int aiSpawnRate, int maxAiSpawns, bool randomizeSpawns)
+    {
+        this.l_aiClassName = AIClassName;
+        this.l_charactermodel = CharacterModel;
+        this.l_aiLimit = aiLimit;
+        this.l_aiSpawnRate = aiSpawnRate;
+        this.l_maxAiSpawns = maxAiSpawns;
+        this.l_randomizeOveralls = randomizeSpawns;
+    }
+}
+
+
+public class WaypointsNew : MonoBehaviour {
+
+    //Spawner Settings  Public and Private Values
+    //Public Values
+    //Spawn Timer, How ofter the spawner will run to before the max is reached
+    public float spawnTimer { get { return l_spawnTimer; } }
+    public Vector3 spawnZone { get { return l_spawnZone; } }
+
+    //Private Values
+    [Header("Settings For the Spawner")]
+    [Range(0f, 500f)]
+    [SerializeField]
+    private float l_spawnTimer;
+    [SerializeField]
+    private Vector3 l_spawnZone = new Vector3(0f, 500f, 500f);
+    [SerializeField]
+    private Color l_spawnZoneColor = new Color(1.000f, 0.000f, 0.300f);
+
+    //Empty Object for the Ai To sit under
+    private GameObject l_AiSpawner;
+
+    //Create A Public List that can be seen in the Inspector
+    public List<Transform> Way = new List<Transform>();
+
+    //Creates a New Array from the New Class that has been stated Above
+    public NPCCharacters[] npcCharacters = new NPCCharacters[1];
+
+    // Use this for initialization
+    void Start () {
+        GetWay();
+        Randomizer();
+        CreateAiSpawner();
+        InvokeRepeating("SpawningAi", 0.5f, spawnTimer);
+    }
+	
+	// Update is called once per frame
+	void Update () {
+		
+	}
+    //Method For Spawning the AI
+    void SpawningAi()
+    {
+        //Looping the The Ai Spawning till the Max Is Reached
+        for (int i = 0; i < npcCharacters.Count(); i++)
+        {
+            //Checking to see if the Checkbox is pressed for the Spawner
+            //This is going to be Permernantly left On during testin however
+            if (npcCharacters[i].enableSpawn && npcCharacters[i].CharacterModel != null)
+            {
+                //Checks to make sure the game world hasn't already reached the Max AI Spawns
+                GameObject tempGroup = GameObject.Find(npcCharacters[i].AIClassName);
+                if (tempGroup.GetComponentInChildren<Transform>().childCount < npcCharacters[i].aiLimit)
+                {
+                    //Spawns a Random amount of Ai indicative of the Max Ai Spawn Count
+                    for (int y = 0; y < Random.Range(0, npcCharacters[i].maxAiSpawns); y++)
+                    {
+                        //Gets a Random Rotation in the Game world
+                        Quaternion randomRotation = Quaternion.Euler(Random.Range(-20, 20), Random.Range(0, 360), 0);
+                        //Creates the Game Object
+                        GameObject tempSpawn;
+                        tempSpawn = Instantiate(npcCharacters[i].CharacterModel, RandomPosition(), randomRotation);
+                        //Place the AI into the Child of the npcCharacters Group
+                        tempSpawn.transform.parent = tempGroup.transform;
+                        //Adds the Ai's Movement Scrip to the Correct Units
+                        tempSpawn.AddComponent<Movement>();
+                    }
+                }
+            }
+        }
+    }
+
+    //Random Position Spawner
+    //Might need to Adjust dependent on Game world
+    public Vector3 RandomPosition()
+    {
+        //Gets a Random Position within the Spawn Area to Spawn the AI
+        Vector3 randomPosition = new Vector3(
+            Random.Range(-spawnZone.x, spawnZone.x),
+            Random.Range(-spawnZone.y, spawnZone.y),
+            Random.Range(-spawnZone.z, spawnZone.z)
+            );
+        randomPosition = transform.TransformPoint(randomPosition * .5f);
+        return randomPosition;
+    }
+
+    //Random Waypoint Selector
+    //Selects a Waypoint to travel to within the scene, Might have problems with Collision.
+    public Vector3 WaypointSelector()
+    {
+        int randomWayP = Random.Range(0, (Way.Count - 1));
+        Vector3 randomWayPoints = Way[randomWayP].transform.position;
+        return randomWayPoints;
+    }
+
+
+    void Randomizer()
+    {
+        //Randomizes the States for the Spawning
+        for (int i = 0; i < npcCharacters.Count(); i++)
+        {
+            if (npcCharacters[i].randomizeSpawns)
+            {
+                //Makes sure to keep the Name and the Model the same, Randomizes the Spawn Limit,Rate and Max Spawns to 20,10 and 10 respectfully
+                npcCharacters[i] = new NPCCharacters(npcCharacters[i].AIClassName, npcCharacters[i].CharacterModel, Random.Range(1, 20), Random.Range(1, 10), Random.Range(1, 10), npcCharacters[i].randomizeSpawns);
+            } 
+        }
+    }
+
+    //Creates the Game Object for the Ai To Spawn Under
+    void CreateAiSpawner()
+    {
+        for (int i = 0; i < npcCharacters.Count(); i++)
+        {
+            //Creates the New Game Object for the Ai To spawn Under
+            l_AiSpawner = new GameObject(npcCharacters[i].AIClassName);
+            l_AiSpawner.transform.parent = this.gameObject.transform;
+        }
+    }
+
+    void GetWay()
+    {
+        //Looks For Nested Children
+        Transform[] wayPList = transform.GetComponentsInChildren<Transform>();
+        for (int i = 0; i < wayPList.Length; i++)
+        {
+            //Searches for the tag "way" Which means Waypoint
+            if(wayPList[i].tag == "Way")
+            {
+                //Adds the Waypoints to the List
+                Way.Add(wayPList[i]);
+            }
+        }
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = l_spawnZoneColor;
+        Gizmos.DrawCube(transform.position, spawnZone);
+    }
+}
