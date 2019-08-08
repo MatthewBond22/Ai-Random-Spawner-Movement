@@ -1,0 +1,127 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class Movement : MonoBehaviour {
+
+    //Needs a Manager Script for the Ai To run off of
+    private WaypointsNew l_aiManager;
+
+    //Declares if the Ai is moving
+    private bool l_aiMoving = false;
+    //Declares if the Ai is Turning
+    private bool l_aiTurning;
+
+    //Variable for the Current waypoint that is selected
+    private Vector3 l_wayP;
+    //Variable for the Previous Waypoint
+    private Vector3 l_preWayP = new Vector3(0f, 0f, 0f);
+
+    //Animator (If Needed)
+    private Animator l_animator;
+    private float l_speed;
+
+    //Private Collider
+    private Collider l_collide;
+
+	// Use this for initialization
+	void Start () {
+        //Assigns the AI Manager from the Parent
+        l_aiManager = transform.parent.GetComponentInParent<WaypointsNew>();
+        //Sets up the Animator
+        l_animator = GetComponent<Animator>();
+        //Starting Up the AI
+        SetUpAi();
+	}
+
+    void SetUpAi()
+    {
+        //Scales each of thr Ai Differently (Gives some Variation in the Ai models)
+        float l_scale = Random.Range(0f, .0075f);
+        transform.localScale += new Vector3(l_scale, l_scale, l_scale);
+
+        //Setting up the collider so that the Ai Has to move around the Objects (MIGHT BREAK THE AI A LITTLE)
+        if (transform.GetComponent<Collider>() != null && transform.GetComponent<Collider>().enabled == true)
+        {
+            l_collide = transform.GetComponent<Collider>();
+        }
+        else if (transform.GetComponentInChildren<Collider>() != null && transform.GetComponentInChildren<Collider>().enabled == true)
+        {
+            l_collide = transform.GetComponentInChildren<Collider>();
+        }
+    }
+    // Update is called once per frame
+    void Update () {
+        //AI Tries to find a Waypoint
+		if (!l_aiMoving)
+        {
+            l_aiMoving = FindTarget();
+        }
+        else
+        {
+            //Makes sure the Ai Is facing the Waypoint that has been selected
+            RotateAI(l_wayP, l_speed);
+            //Move Towards the Waypoint that has been selected on the Map (Might be a Collision Problem here)
+            transform.position = Vector3.MoveTowards(transform.position, l_wayP, l_speed * Time.deltaTime);
+        }
+        //Checks to see if the Ai Has reached its destination and then Resets the Find Target section
+        if (transform.position == l_wayP)
+        {
+            l_aiMoving = false;
+        }
+	}
+
+    void CollideAI()
+    {
+        RaycastHit hit;
+        if (Physics.Raycast(transform.position, transform.forward, out hit, transform.localScale.z))
+        {
+            //Will not detect if it hits itself or anything wtih the tag Way standing for Waypoint
+            if(hit.collider == l_collide | hit.collider.tag == "Way")
+            {
+                return;
+            }
+            //Random Number Range Used to see if it will decide to move onto a different Waypoint or not
+            int randomnum = Random.Range(1, 100);
+            //Less than 30 and the AI will change the Waypoint that its trying to get to.
+            if (randomnum < 30)
+                l_aiMoving = false;
+
+            //This is here just to make sure the collision is working
+            Debug.Log(hit.collider.transform.parent.name + " " + hit.collider.transform.parent.position);
+        }
+    }
+
+    bool FindTarget(float start = 1f, float end = 8f)
+    {
+        l_wayP = l_aiManager.RandomPosition();
+        //Makes sure the Same Waypoint isn't selected twice so the Ai does not get stuck
+        if (l_preWayP == l_wayP)
+        {
+            //Decides on a new Waypoint
+            l_wayP = l_aiManager.RandomPosition();
+            return false;
+        }
+        else
+        {
+            //sets the new waypoint as the previous waypoint
+            l_preWayP = l_wayP;
+            //Gets the Speed for the Movement and Animation Cycle
+            l_speed = Random.Range(start, end);
+            l_animator.speed = l_speed;
+            //sets the Bool value to true once a Waypoint has been found
+            return true;
+        }
+    }
+
+    //Rotate the AI to face the Current Waypoint that is selected by the Script
+    void RotateAI (Vector3 waypoint, float speed)
+    {
+        //Gets a Random speed for the Turning Circle that the Ai Has to do
+        float RotationSpeed = speed * Random.Range(1f, 2f);
+
+        //Gets the new Direction of the Waypoint and Faces the Ai in that Direction
+        Vector3 LookAt = waypoint - transform.position;
+        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(LookAt), RotationSpeed * Time.deltaTime);
+    }
+}
